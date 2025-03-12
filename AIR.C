@@ -41,17 +41,35 @@
 #define AS5 22
 #define B5 23
 #define C6 24
-#define REST -100 // Define a special value for a rest (pause)
+#define REST -100
 
-// Function to play a note or a rest through the PC speaker for a specified duration
+#define MAX_NOTES 100
+#define NOTE_COUNT 37 // Number of defined notes including REST
+#define MAX_VISIBLE 20 // Maximum number of notes visible on screen
+
+// Array of note names for display and cycling
+const char *note_names[] = {
+    "C3", "CS3", "D3", "DS3", "E3", "F3", "FS3", "G3", "GS3", "A3", "AS3", "B3",
+    "C4", "CS4", "D4", "DS4", "E4", "F4", "FS4", "G4", "GS4", "A4", "AS4", "B4",
+    "C5", "CS5", "D5", "DS5", "E5", "F5", "FS5", "G5", "GS5", "A5", "AS5", "B5",
+    "C6", "REST"
+};
+
+// Corresponding semitone values
+const int note_values[] = {
+    C3, CS3, D3, DS3, E3, F3, FS3, G3, GS3, A3, AS3, B3,
+    C4, CS4, D4, DS4, E4, F4, FS4, G4, GS4, A4, AS4, B4,
+    C5, CS5, D5, DS5, E5, F5, FS5, G5, GS5, A5, AS5, B5,
+    C6, REST
+};
+
+// Function to play a note or a rest
 void play_note(int semitone, unsigned int duration_ms) {
     if (semitone == REST) {
         unsigned int i, j;
         unsigned int loop_count = 40000;
         for (i = 0; i < duration_ms; i++) {
-            for (j = 0; j < loop_count; j++) {
-                // Do nothing, just waste time
-            }
+            for (j = 0; j < loop_count; j++) {}
         }
     } else {
         double base_frequency = 261.6256;
@@ -63,125 +81,269 @@ void play_note(int semitone, unsigned int duration_ms) {
         outportb(0x42, (unsigned char)((timer_value >> 8) & 0xFF));
         outportb(0x61, inportb(0x61) | 0x03);
 
-        {
-            unsigned int i, j;
-            unsigned int loop_count = 20000;
-            for (i = 0; i < duration_ms; i++) {
-                for (j = 0; j < loop_count; j++) {
-                    // Do nothing, just waste time
-                }
-            }
+        unsigned int i, j;
+        unsigned int loop_count = 20000;
+        for (i = 0; i < duration_ms; i++) {
+            for (j = 0; j < loop_count; j++) {}
         }
 
         outportb(0x61, inportb(0x61) & 0xFC);
     }
 }
 
-// Function to convert note string to semitone value
-int note_to_semitone(char *note) {
-    if (strcmp(note, "REST") == 0) return REST;
-    if (strcmp(note, "C3") == 0) return C3;
-    if (strcmp(note, "CS3") == 0) return CS3;
-    if (strcmp(note, "D3") == 0) return D3;
-    if (strcmp(note, "DS3") == 0) return DS3;
-    if (strcmp(note, "E3") == 0) return E3;
-    if (strcmp(note, "F3") == 0) return F3;
-    if (strcmp(note, "FS3") == 0) return FS3;
-    if (strcmp(note, "G3") == 0) return G3;
-    if (strcmp(note, "GS3") == 0) return GS3;
-    if (strcmp(note, "A3") == 0) return A3;
-    if (strcmp(note, "AS3") == 0) return AS3;
-    if (strcmp(note, "B3") == 0) return B3;
-    if (strcmp(note, "C4") == 0) return C4;
-    if (strcmp(note, "CS4") == 0) return CS4;
-    if (strcmp(note, "D4") == 0) return D4;
-    if (strcmp(note, "DS4") == 0) return DS4;
-    if (strcmp(note, "E4") == 0) return E4;
-    if (strcmp(note, "F4") == 0) return F4;
-    if (strcmp(note, "FS4") == 0) return FS4;
-    if (strcmp(note, "G4") == 0) return G4;
-    if (strcmp(note, "GS4") == 0) return GS4;
-    if (strcmp(note, "A4") == 0) return A4;
-    if (strcmp(note, "AS4") == 0) return AS4;
-    if (strcmp(note, "B4") == 0) return B4;
-    if (strcmp(note, "C5") == 0) return C5;
-    if (strcmp(note, "CS5") == 0) return CS5;
-    if (strcmp(note, "D5") == 0) return D5;
-    if (strcmp(note, "DS5") == 0) return DS5;
-    if (strcmp(note, "E5") == 0) return E5;
-    if (strcmp(note, "F5") == 0) return F5;
-    if (strcmp(note, "FS5") == 0) return FS5;
-    if (strcmp(note, "G5") == 0) return G5;
-    if (strcmp(note, "GS5") == 0) return GS5;
-    if (strcmp(note, "A5") == 0) return A5;
-    if (strcmp(note, "AS5") == 0) return AS5;
-    if (strcmp(note, "B5") == 0) return B5;
-    if (strcmp(note, "C6") == 0) return C6;
-    return REST; // Default to rest if note is unrecognized
+// Function to display the song spreadsheet with scrolling
+void display_song(int sequence[], unsigned int durations[], int length, int cursor_row, int cursor_col, int display_start) {
+    clrscr();
+    printf("00     NOTE     LENGTH\n");
+    int display_end = display_start + MAX_VISIBLE;
+    if (display_end > length) display_end = length;
+
+    for (int i = display_start; i < display_end; i++) {
+        printf("%02d     %-4s    %u", i + 1, note_names[sequence[i]], durations[i]);
+        if (i == cursor_row) {
+            if (cursor_col == 0) printf("  <- NOTE");
+            else printf("  <- LENGTH");
+        }
+        printf("\n");
+    }
+    printf("\nUse arrows to edit, Tab to switch, P to play, T to add, S to save, L to load, Q to quit.\n");
+}
+
+// Function to save the song to song.txt
+void save_song(int sequence[], unsigned int durations[], int length) {
+    FILE *file = fopen("song.txt", "w");
+    if (!file) {
+        printf("\nError: Could not save to song.txt\n");
+        delay(1000);
+        return;
+    }
+
+    fprintf(file, "$");
+    for (int i = 0; i < length; i++) {
+        fprintf(file, "%s", note_names[sequence[i]]);
+        if (i < length - 1) fprintf(file, ", ");
+    }
+    fprintf(file, "$\n");
+
+    fprintf(file, "&");
+    for (int i = 0; i < length; i++) {
+        fprintf(file, "%u", durations[i]);
+        if (i < length - 1) fprintf(file, ", ");
+    }
+    fprintf(file, "&\n");
+
+    fclose(file);
+    printf("\nSong saved to song.txt\n");
+    delay(1000);
+}
+
+// Function to trim whitespace from a string
+void trim(char *str) {
+    int start = 0, end = strlen(str) - 1;
+    while (str[start] == ' ' || str[start] == '\t') start++;
+    while (end >= 0 && (str[end] == ' ' || str[end] == '\t' || str[end] == ',' || str[end] == '\n')) end--;
+    if (start > end) {
+        str[0] = '\0';
+        return;
+    }
+    memmove(str, str + start, end - start + 1);
+    str[end - start + 1] = '\0';
+}
+
+// Function to load the song from song.txt
+int load_song(int sequence[], unsigned int durations[], int *length) {
+    FILE *file = fopen("song.txt", "r");
+    if (!file) {
+        display_song(sequence, durations, *length, 0, 0, 0); // Redraw current screen
+        printf("\nError: Could not open song.txt");
+        delay(1000);
+        return 0;
+    }
+
+    char line[1024];
+    int note_count = 0;
+
+    // Read notes line
+    if (!fgets(line, sizeof(line), file) || line[0] != '$') {
+        display_song(sequence, durations, *length, 0, 0, 0);
+        printf("\nError: Invalid or missing notes line in song.txt");
+        fclose(file);
+        delay(1000);
+        return 0;
+    }
+
+    char *token = strtok(line + 1, "$,");
+    if (!token || strlen(token) == 0) {
+        display_song(sequence, durations, *length, 0, 0, 0);
+        printf("\nError: No notes found between $...$");
+        fclose(file);
+        delay(1000);
+        return 0;
+    }
+
+    while (token && note_count < MAX_NOTES) {
+        trim(token);
+        if (strlen(token) == 0) {
+            token = strtok(NULL, "$,");
+            continue;
+        }
+
+        int found = 0;
+        for (int i = 0; i < NOTE_COUNT; i++) {
+            if (strcmp(token, note_names[i]) == 0) {
+                sequence[note_count++] = i;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            display_song(sequence, durations, *length, 0, 0, 0);
+            printf("\nError: Unknown note '%s' in song.txt", token);
+            fclose(file);
+            delay(2000);
+            return 0;
+        }
+        token = strtok(NULL, "$,");
+    }
+
+    // Read durations line
+    if (!fgets(line, sizeof(line), file) || line[0] != '&') {
+        display_song(sequence, durations, *length, 0, 0, 0);
+        printf("\nError: Invalid or missing durations line in song.txt");
+        fclose(file);
+        delay(1000);
+        return 0;
+    }
+
+    int dur_count = 0;
+    token = strtok(line + 1, "&,");
+    if (!token || strlen(token) == 0) {
+        display_song(sequence, durations, *length, 0, 0, 0);
+        printf("\nError: No durations found between &...&");
+        fclose(file);
+        delay(1000);
+        return 0;
+    }
+
+    while (token && dur_count < note_count) {
+        trim(token);
+        if (strlen(token) == 0) {
+            token = strtok(NULL, "&,");
+            continue;
+        }
+        durations[dur_count++] = atoi(token);
+        token = strtok(NULL, "&,");
+    }
+
+    if (dur_count != note_count) {
+        display_song(sequence, durations, *length, 0, 0, 0);
+        printf("\nError: Mismatch between notes (%d) and durations (%d)", note_count, dur_count);
+        fclose(file);
+        delay(1000);
+        return 0;
+    }
+
+    fclose(file);
+    *length = note_count;
+    display_song(sequence, durations, *length, 0, 0, 0);
+    printf("\nSong loaded from song.txt");
+    delay(1000);
+    return 1;
 }
 
 // Main function
 int main() {
-    FILE *file = fopen("song.txt", "r");
-    if (!file) {
-        printf("Error: Could not open song.txt\n");
-        printf("Press any key to exit...\n");
-        getch();
-        return 1;
+    int sequence[MAX_NOTES] = {0}; // Semitone indices into note_values
+    unsigned int durations[MAX_NOTES] = {0};
+    int sequence_length = 5; // Initial length
+    int cursor_row = 0; // Current row
+    int cursor_col = 0; // 0 for NOTE, 1 for LENGTH
+    int display_start = 0; // Start of visible portion
+
+    // Initial song data
+    sequence[0] = 12; // C4
+    durations[0] = 1000;
+    sequence[1] = 13; // CS4
+    durations[1] = 500;
+    sequence[2] = 14; // D4
+    durations[2] = 2000;
+    sequence[3] = NOTE_COUNT - 1; // REST
+    durations[3] = 500;
+    sequence[4] = 15; // DS4
+    durations[4] = 2000;
+
+    display_song(sequence, durations, sequence_length, cursor_row, cursor_col, display_start);
+
+    while (1) {
+        if (kbhit()) {
+            int key = getch();
+            if (key == 0 || key == 224) { // Extended key (arrows)
+                key = getch();
+                switch (key) {
+                    case 72: // Up arrow
+                        if (cursor_col == 0 && cursor_row > 0) {
+                            cursor_row--;
+                            if (cursor_row < display_start) display_start--;
+                        } else if (cursor_col == 1 && durations[cursor_row] < 65535 - 500) {
+                            durations[cursor_row] += 500; // Increase LENGTH
+                        }
+                        break;
+                    case 80: // Down arrow
+                        if (cursor_col == 0 && cursor_row < sequence_length - 1) {
+                            cursor_row++;
+                            if (cursor_row >= display_start + MAX_VISIBLE) display_start++;
+                        } else if (cursor_col == 1 && durations[cursor_row] > 500) {
+                            durations[cursor_row] -= 500; // Decrease LENGTH
+                        }
+                        break;
+                    case 75: // Left arrow
+                        if (cursor_col == 0) sequence[cursor_row] = (sequence[cursor_row] - 1 + NOTE_COUNT) % NOTE_COUNT; // Previous note
+                        break;
+                    case 77: // Right arrow
+                        if (cursor_col == 0) sequence[cursor_row] = (sequence[cursor_row] + 1) % NOTE_COUNT; // Next note
+                        break;
+                }
+            } else {
+                switch (key) {
+                    case 9: // Tab key
+                        cursor_col = (cursor_col + 1) % 2; // Switch between NOTE and LENGTH
+                        break;
+                    case 'p':
+                    case 'P':
+                        for (int i = 0; i < sequence_length; i++) {
+                            play_note(note_values[sequence[i]], durations[i]);
+                        }
+                        break;
+                    case 't':
+                    case 'T':
+                        if (sequence_length < MAX_NOTES) {
+                            sequence[sequence_length] = 12; // C4 (index 12 in note_values)
+                            durations[sequence_length] = 500; // Default 500 ms
+                            sequence_length++;
+                            cursor_row = sequence_length - 1; // Move cursor to new line
+                            cursor_col = 0; // Start on NOTE column
+                            if (cursor_row >= display_start + MAX_VISIBLE) display_start = cursor_row - MAX_VISIBLE + 1;
+                        } else {
+                            printf("\nMax notes reached (%d)!\n", MAX_NOTES);
+                            delay(1000);
+                        }
+                        break;
+                    case 's':
+                    case 'S':
+                        save_song(sequence, durations, sequence_length);
+                        break;
+                    case 'l':
+                    case 'L':
+                        load_song(sequence, durations, &sequence_length);
+                        break;
+                    case 'q':
+                    case 'Q':
+                        clrscr();
+                        return 0;
+                }
+            }
+            display_song(sequence, durations, sequence_length, cursor_row, cursor_col, display_start);
+        }
     }
-
-    int sequence[100]; // Max 100 notes (adjust as needed)
-    unsigned int durations[100];
-    int sequence_length = 0;
-
-    char line[256];
-    char *token;
-
-    // Read notes line
-    if (fgets(line, sizeof(line), file)) {
-        if (line[0] != '$') {
-            printf("Error: Notes line must start with '$'\n");
-            fclose(file);
-            getch();
-            return 1;
-        }
-        token = strtok(line + 1, "$, "); // Skip '$' and split by ',', '$', or space
-        while (token && sequence_length < 100) {
-            sequence[sequence_length++] = note_to_semitone(token);
-            token = strtok(NULL, "$, ");
-        }
-    }
-
-    // Read durations line
-    if (fgets(line, sizeof(line), file)) {
-        if (line[0] != '&') {
-            printf("Error: Durations line must start with '&'\n");
-            fclose(file);
-            getch();
-            return 1;
-        }
-        int i = 0;
-        token = strtok(line + 1, "&, "); // Skip '&' and split by '&', ',', or space
-        while (token && i < sequence_length) {
-            durations[i++] = atoi(token);
-            token = strtok(NULL, "&, ");
-        }
-        if (i != sequence_length) {
-            printf("Error: Number of durations (%d) does not match number of notes (%d)\n", i, sequence_length);
-            fclose(file);
-            getch();
-            return 1;
-        }
-    }
-
-    fclose(file);
-
-    // Play the sequence
-    for (int i = 0; i < sequence_length; i++) {
-        play_note(sequence[i], durations[i]);
-    }
-
-    printf("Press any key to exit...\n");
-    getch();
     return 0;
 }
