@@ -2,6 +2,7 @@
 #include <conio.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 #define C3 -12
 #define CS3 -11
@@ -28,73 +29,159 @@
 #define AS4 10
 #define B4 11
 #define C5 12
+#define CS5 13
+#define D5 14
+#define DS5 15
+#define E5 16
+#define F5 17
+#define FS5 18
+#define G5 19
+#define GS5 20
+#define A5 21
+#define AS5 22
+#define B5 23
+#define C6 24
 #define REST -100 // Define a special value for a rest (pause)
 
 // Function to play a note or a rest through the PC speaker for a specified duration
 void play_note(int semitone, unsigned int duration_ms) {
     if (semitone == REST) {
-        // For a rest, just delay without playing sound
         unsigned int i, j;
-        unsigned int loop_count = 40000; // Adjust this value for timing
-
-        // Outer loop for milliseconds
+        unsigned int loop_count = 40000;
         for (i = 0; i < duration_ms; i++) {
-            // Inner loop for busy-wait
             for (j = 0; j < loop_count; j++) {
                 // Do nothing, just waste time
             }
         }
     } else {
-        // Define the base frequency (C4 = 261.6256 Hz)
         double base_frequency = 261.6256;
-
-        // Calculate the frequency for the given semitone
         double frequency = base_frequency * pow(2.0, semitone / 12.0);
-
-        // Calculate the timer value for the PC speaker
         unsigned int timer_value = 1193180 / (unsigned int)frequency;
 
-        // Send the timer value to the PC speaker
-        outportb(0x43, 0xB6); // Set up the timer (channel 2, mode 3)
-        outportb(0x42, (unsigned char)(timer_value & 0xFF)); // Low byte
-        outportb(0x42, (unsigned char)((timer_value >> 8) & 0xFF)); // High byte
-
-        // Turn on the speaker
+        outportb(0x43, 0xB6);
+        outportb(0x42, (unsigned char)(timer_value & 0xFF));
+        outportb(0x42, (unsigned char)((timer_value >> 8) & 0xFF));
         outportb(0x61, inportb(0x61) | 0x03);
 
-        // Delay for the specified duration
         {
             unsigned int i, j;
-            unsigned int loop_count = 40000; // Adjust this value for timing
-
-            // Outer loop for milliseconds
+            unsigned int loop_count = 20000;
             for (i = 0; i < duration_ms; i++) {
-                // Inner loop for busy-wait
                 for (j = 0; j < loop_count; j++) {
                     // Do nothing, just waste time
                 }
             }
         }
 
-        // Turn off the speaker
         outportb(0x61, inportb(0x61) & 0xFC);
     }
 }
 
+// Function to convert note string to semitone value
+int note_to_semitone(char *note) {
+    if (strcmp(note, "REST") == 0) return REST;
+    if (strcmp(note, "C3") == 0) return C3;
+    if (strcmp(note, "CS3") == 0) return CS3;
+    if (strcmp(note, "D3") == 0) return D3;
+    if (strcmp(note, "DS3") == 0) return DS3;
+    if (strcmp(note, "E3") == 0) return E3;
+    if (strcmp(note, "F3") == 0) return F3;
+    if (strcmp(note, "FS3") == 0) return FS3;
+    if (strcmp(note, "G3") == 0) return G3;
+    if (strcmp(note, "GS3") == 0) return GS3;
+    if (strcmp(note, "A3") == 0) return A3;
+    if (strcmp(note, "AS3") == 0) return AS3;
+    if (strcmp(note, "B3") == 0) return B3;
+    if (strcmp(note, "C4") == 0) return C4;
+    if (strcmp(note, "CS4") == 0) return CS4;
+    if (strcmp(note, "D4") == 0) return D4;
+    if (strcmp(note, "DS4") == 0) return DS4;
+    if (strcmp(note, "E4") == 0) return E4;
+    if (strcmp(note, "F4") == 0) return F4;
+    if (strcmp(note, "FS4") == 0) return FS4;
+    if (strcmp(note, "G4") == 0) return G4;
+    if (strcmp(note, "GS4") == 0) return GS4;
+    if (strcmp(note, "A4") == 0) return A4;
+    if (strcmp(note, "AS4") == 0) return AS4;
+    if (strcmp(note, "B4") == 0) return B4;
+    if (strcmp(note, "C5") == 0) return C5;
+    if (strcmp(note, "CS5") == 0) return CS5;
+    if (strcmp(note, "D5") == 0) return D5;
+    if (strcmp(note, "DS5") == 0) return DS5;
+    if (strcmp(note, "E5") == 0) return E5;
+    if (strcmp(note, "F5") == 0) return F5;
+    if (strcmp(note, "FS5") == 0) return FS5;
+    if (strcmp(note, "G5") == 0) return G5;
+    if (strcmp(note, "GS5") == 0) return GS5;
+    if (strcmp(note, "A5") == 0) return A5;
+    if (strcmp(note, "AS5") == 0) return AS5;
+    if (strcmp(note, "B5") == 0) return B5;
+    if (strcmp(note, "C6") == 0) return C6;
+    return REST; // Default to rest if note is unrecognized
+}
+
 // Main function
 int main() {
-    // Declare all variables at the top
-    int sequence[] = {D4, E4, F4, F4, E4, F4, D4, C4, D4, D4, E4, C4, REST, G4, F4, D4, C4,}; // Semitones with a rest
-    unsigned int durations[] = {1000, 1000, 2000, 2000, 1000, 1000, 2000, 1000, 1000, 1000, 1000, 500, 500, 500, 500, 1000, 1000, 1000}; // Durations in milliseconds
-    int sequence_length = sizeof(sequence) / sizeof(sequence[0]);
-    int i; // Loop variable
+    FILE *file = fopen("song.txt", "r");
+    if (!file) {
+        printf("Error: Could not open song.txt\n");
+        printf("Press any key to exit...\n");
+        getch();
+        return 1;
+    }
+
+    int sequence[100]; // Max 100 notes (adjust as needed)
+    unsigned int durations[100];
+    int sequence_length = 0;
+
+    char line[256];
+    char *token;
+
+    // Read notes line
+    if (fgets(line, sizeof(line), file)) {
+        if (line[0] != '$') {
+            printf("Error: Notes line must start with '$'\n");
+            fclose(file);
+            getch();
+            return 1;
+        }
+        token = strtok(line + 1, "$, "); // Skip '$' and split by ',', '$', or space
+        while (token && sequence_length < 100) {
+            sequence[sequence_length++] = note_to_semitone(token);
+            token = strtok(NULL, "$, ");
+        }
+    }
+
+    // Read durations line
+    if (fgets(line, sizeof(line), file)) {
+        if (line[0] != '&') {
+            printf("Error: Durations line must start with '&'\n");
+            fclose(file);
+            getch();
+            return 1;
+        }
+        int i = 0;
+        token = strtok(line + 1, "&, "); // Skip '&' and split by '&', ',', or space
+        while (token && i < sequence_length) {
+            durations[i++] = atoi(token);
+            token = strtok(NULL, "&, ");
+        }
+        if (i != sequence_length) {
+            printf("Error: Number of durations (%d) does not match number of notes (%d)\n", i, sequence_length);
+            fclose(file);
+            getch();
+            return 1;
+        }
+    }
+
+    fclose(file);
 
     // Play the sequence
-    for (i = 0; i < sequence_length; i++) {
+    for (int i = 0; i < sequence_length; i++) {
         play_note(sequence[i], durations[i]);
     }
 
-    // Wait for a key press before exiting
     printf("Press any key to exit...\n");
     getch();
+    return 0;
 }
