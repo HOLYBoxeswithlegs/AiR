@@ -17,6 +17,19 @@ The notes have to be enclosed with an American dollar sign and the note length h
 
 It could also be that I suck at reading.
 
+GUI UPDATE!!!!!!!!
+
+Now you don't need to use clunky Visual Studio Code to make your music. Now you can write your music in the program.
+The GUI wasn't what I wanted it to be, but it works and that's all I care about.
+
+You can control the note selection with the arrow keys. L/R arrow keys for changing the semitone, U/D arrows keys for going to the next note in the track, tab for going to the length tab, U/D arrow keys in length to change note length by 500.
+
+The application has scrolling so you don't have to worry about losing your notes. (Trust me I lost a lot of progress.)
+
+Each song is still saved to song.txt.
+
+There's also loading song.txt which means that you can share songs with your "friends."
+
 # Compilation
 ### DJGPP
 It should compile fine with the latest DJGPP version. I've only compiled it on Linux so I don't know if it'll compile on Windows.
