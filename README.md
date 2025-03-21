@@ -4,6 +4,8 @@ AiR is a really terrible attempt at making a tracker program for MS-DOS, but I s
 It was meant to have a really simple GUI and simple keybinds to make it so you didn't have to learn the program before making music in it.
 AiR uses the PC Speaker to make tones. (THATS IT)
 
+You need to have the programs in the DOS directory set in your path variable for AiR to work.
+
 The first version is just the C Major scale, but the next version adds rest notes..... I also programmed some notes of Risen by Terry A Davis.
 
 ^^^^^^^^^^^^^^^
