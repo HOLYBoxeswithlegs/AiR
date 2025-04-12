@@ -43,7 +43,7 @@
 #define C6 24
 #define REST -100
 
-#define MAX_NOTES 100
+#define MAX_NOTES 32767
 #define NOTE_COUNT 37 // Number of defined notes including REST
 #define MAX_VISIBLE 20 // Maximum number of notes visible on screen
 
@@ -106,7 +106,7 @@ void display_song(int sequence[], unsigned int durations[], int length, int curs
         }
         printf("\n");
     }
-    printf("\nUse arrows to edit, Tab to switch, P to play, T to add, S to save, L to load, Q to quit.\n");
+    printf("\nRead the README for instructions!\n");
 }
 
 // Function to save the song to song.txt
@@ -114,6 +114,7 @@ void save_song(int sequence[], unsigned int durations[], int length) {
     FILE *file = fopen("song.txt", "w");
     if (!file) {
         printf("\nError: Could not save to song.txt\n");
+        putch(7);
         delay(1000);
         return;
     }
@@ -134,7 +135,10 @@ void save_song(int sequence[], unsigned int durations[], int length) {
 
     fclose(file);
     printf("\nSong saved to song.txt\n");
-    delay(1000);
+    play_note(-12, 75);
+    play_note(-13, 75);
+    play_note(-14, 75);
+    delay(250);
 }
 
 // Function to trim whitespace from a string
@@ -156,6 +160,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
     if (!file) {
         display_song(sequence, durations, *length, 0, 0, 0); // Redraw current screen
         printf("\nError: Could not open song.txt");
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -168,6 +173,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
         display_song(sequence, durations, *length, 0, 0, 0);
         printf("\nError: Invalid or missing notes line in song.txt");
         fclose(file);
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -177,6 +183,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
         display_song(sequence, durations, *length, 0, 0, 0);
         printf("\nError: No notes found between $...$");
         fclose(file);
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -200,6 +207,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
             display_song(sequence, durations, *length, 0, 0, 0);
             printf("\nError: Unknown note '%s' in song.txt", token);
             fclose(file);
+            putch(7);
             delay(2000);
             return 0;
         }
@@ -211,6 +219,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
         display_song(sequence, durations, *length, 0, 0, 0);
         printf("\nError: Invalid or missing durations line in song.txt");
         fclose(file);
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -221,6 +230,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
         display_song(sequence, durations, *length, 0, 0, 0);
         printf("\nError: No durations found between &...&");
         fclose(file);
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -239,6 +249,7 @@ int load_song(int sequence[], unsigned int durations[], int *length) {
         display_song(sequence, durations, *length, 0, 0, 0);
         printf("\nError: Mismatch between notes (%d) and durations (%d)", note_count, dur_count);
         fclose(file);
+        putch(7);
         delay(1000);
         return 0;
     }
@@ -267,7 +278,7 @@ int main() {
     durations[1] = 500;
     sequence[2] = 14; // D4
     durations[2] = 2000;
-    sequence[3] = NOTE_COUNT - 1; // REST
+    sequence[3] = 12; // REST
     durations[3] = 500;
     sequence[4] = 15; // DS4
     durations[4] = 2000;
@@ -283,30 +294,38 @@ int main() {
                     case 72: // Up arrow
                         if (cursor_col == 0 && cursor_row > 0) {
                             cursor_row--;
+                            play_note(1, 1);
                             if (cursor_row < display_start) display_start--;
-                        } else if (cursor_col == 1 && durations[cursor_row] < 65535 - 500) {
-                            durations[cursor_row] += 500; // Increase LENGTH
+                        } else if (cursor_col == 1 && durations[cursor_row] < 65535 - 250) {
+                            durations[cursor_row] += 250; // Increase LENGTH
                         }
                         break;
                     case 80: // Down arrow
                         if (cursor_col == 0 && cursor_row < sequence_length - 1) {
                             cursor_row++;
+                            play_note(1, 1);
                             if (cursor_row >= display_start + MAX_VISIBLE) display_start++;
-                        } else if (cursor_col == 1 && durations[cursor_row] > 500) {
-                            durations[cursor_row] -= 500; // Decrease LENGTH
+                        } else if (cursor_col == 1 && durations[cursor_row] > 250) {
+                            durations[cursor_row] -= 250; // Decrease LENGTH
                         }
                         break;
                     case 75: // Left arrow
                         if (cursor_col == 0) sequence[cursor_row] = (sequence[cursor_row] - 1 + NOTE_COUNT) % NOTE_COUNT; // Previous note
+                        play_note(1, 1);
                         break;
                     case 77: // Right arrow
                         if (cursor_col == 0) sequence[cursor_row] = (sequence[cursor_row] + 1) % NOTE_COUNT; // Next note
+                        play_note(1, 1);
                         break;
                 }
             } else {
                 switch (key) {
                     case 9: // Tab key
                         cursor_col = (cursor_col + 1) % 2; // Switch between NOTE and LENGTH
+                        play_note(1, 50);
+                        play_note(3, 50);
+                        play_note(5, 50);
+                        play_note(7, 50);
                         break;
                     case 'p':
                     case 'P':
@@ -318,14 +337,37 @@ int main() {
                     case 'T':
                         if (sequence_length < MAX_NOTES) {
                             sequence[sequence_length] = 12; // C4 (index 12 in note_values)
-                            durations[sequence_length] = 500; // Default 500 ms
+                            durations[sequence_length] = 250;
                             sequence_length++;
                             cursor_row = sequence_length - 1; // Move cursor to new line
                             cursor_col = 0; // Start on NOTE column
+                            play_note(-12, 75);
                             if (cursor_row >= display_start + MAX_VISIBLE) display_start = cursor_row - MAX_VISIBLE + 1;
                         } else {
-                            printf("\nMax notes reached (%d)!\n", MAX_NOTES);
-                            delay(1000);
+                            printf("\nMax notes reached (%d)...... Dude.. Just how?\n", MAX_NOTES);
+                            putch(7);
+                            delay(250);
+                        }
+                        break;
+                    case 'r':
+                    case 'R':
+                        if (sequence_length > 0) { // Prevent negative sequence_length
+                            sequence_length--; // Remove the last note
+                            cursor_row = sequence_length - 1; // Move cursor to the new last note
+                            if (cursor_row < 0) cursor_row = 0; // Ensure cursor_row doesn't go negative
+                            cursor_col = 0; // Reset to NOTE column (consistent with 'T' case)
+                            play_note(-12, 75); // Play feedback note
+                            // Adjust display to keep cursor visible
+                            if (cursor_row < display_start) {
+                                display_start = cursor_row; // Scroll up if cursor is above visible area
+                            } else if (cursor_row >= display_start + MAX_VISIBLE) {
+                                display_start = cursor_row - MAX_VISIBLE + 1; // Scroll down if needed
+                            }
+                        } else {
+                            // Optional: Provide feedback when sequence is empty
+                            printf("\nNo notes to remove!\n");
+                            putch(7); // Beep
+                            delay(250);
                         }
                         break;
                     case 's':
@@ -339,6 +381,7 @@ int main() {
                     case 'q':
                     case 'Q':
                         clrscr();
+                        printf("AiR for MS-DOS by ZLH\n\n");
                         return 0;
                 }
             }
