@@ -1,0 +1,1 @@
+i586-pc-msdosdjgpp-gcc AIR.C -o AIR.EXE
